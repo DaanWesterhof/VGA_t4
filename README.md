@@ -1,5 +1,5 @@
 # VGA_t4 (by J-M Harvengt)
-Reformatted by Daan Westerhof to make more use of certain features in C++ and change C style code to C++. (WIP_
+Reformatted by Daan Westerhof to make more use of certain features in C++ and change C style code to C++. (WIP)
 
 <p align="center">
   <img height="320" src="/images/vga.png">
