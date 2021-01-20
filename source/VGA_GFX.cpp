@@ -2,7 +2,7 @@
 // Created by daang on 1/20/2021.
 //
 
-#include "VGA_GFX.hpp"
+#include "../header/VGA_GFX.hpp"
 
 //--------------------------------------------------------------
 // Draw a line between 2 points

@@ -13,8 +13,8 @@
 	from the Teensy4 forum (https://forum.pjrc.com)
 */
 
-#include "VGA_t4.h"
-#include "VGA_font8x8.h"
+#include "../header/VGA_t4.h"
+#include "../header/VGA_font8x8.h"
 
 // Objective:
 // generates VGA signal fully in hardware with as little as possible CPU help
