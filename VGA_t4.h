@@ -20,28 +20,10 @@
 #include <avr_emulation.h>
 #include <DMAChannel.h>
 #include <math.h>
+#include "VGA_settings.hpp"
 
 
-// Enable debug info (requires serial initialization)
-//#define DEBUG
-
-// Enable 12bits mode
-// Default is 8bits RRRGGGBB (332) 
-// But 12bits GBB0RRRRGGGBB (444) feasible BUT NOT TESTED !!!!
-//#define BITS12
-
-
-
-#ifdef BITS12
-typedef uint16_t vga_pixel;
-#define VGA_RGB(r,g,b)  ( (((r>>3)&0x1f)<<11) | (((g>>2)&0x3f)<<5) | (((b>>3)&0x1f)<<0) )
-#else
-typedef uint8_t vga_pixel;
-#define VGA_RGB(r,g,b)   ( (((r>>5)&0x07)<<5) | (((g>>5)&0x07)<<2) | (((b>>6)&0x3)<<0) )
-#endif
-
-typedef enum vga_mode_t
-{
+enum class vga_mode_t {
   VGA_MODE_320x240 = 0,
   VGA_MODE_320x480 = 1,
   VGA_MODE_352x240 = 2,
@@ -50,37 +32,29 @@ typedef enum vga_mode_t
   VGA_MODE_512x480 = 5,
   VGA_MODE_640x240 = 6,
   VGA_MODE_640x480 = 7
-} vga_mode_t;
+};
 
 
-typedef enum vga_error_t
-{
+enum class vga_error_t {
 	VGA_OK = 0,
 	VGA_ERROR = -1
-} vga_error_t;
+};
 
-#define MaxPolyPoint    100
 
-#define AUDIO_SAMPLE_BUFFER_SIZE 256
 
 // 2D point structure
-typedef struct {
+struct Point2D{
 	int16_t x;			// X Coordinate on screen
 	int16_t y;			// Y Coordinate on screen
-}Point2D;
+};
 
 // Polygon structure
-typedef struct {
+struct PolyDef {
 	Point2D		Center;				// Polygon Center (point where the polygon can rotate arround)
 	Point2D		Pts[MaxPolyPoint];	// Points for the polygon
-}PolyDef;
+};
 
 
-#define DEFAULT_VSYNC_PIN 8
-
-#ifndef ABS
-#define ABS(X)  ((X) > 0 ? (X) : -(X))
-#endif
 
 extern PolyDef PolySet;  // polygon data to declare in c file
 
@@ -165,117 +139,77 @@ const float calcco[360]={
 		0.9455169 , 0.9510549 , 0.9563032 , 0.9612602 , 0.9659245 , 0.9702945 , 0.9743689 , 0.9781465 , 0.9816261 , 0.9848069 ,              // 341 à  350
 		0.9876875 , 0.9902673 , 0.9925455 , 0.9945213 , 0.9961942 , 0.9975637 , 0.9986292 , 0.9993906 , 0.9998476 };                         // 351 à  359
 
+namespace VGA_T4 {
 
-class VGA_T4
-{
-public:
+    class VGA_Handler {
+    public:
 
-  VGA_T4(int vsync_pin = DEFAULT_VSYNC_PIN);
+        VGA_T4(int vsync_pin = DEFAULT_VSYNC_PIN);
 
-  // display VGA image
-  vga_error_t begin(vga_mode_t mode);
-  void begin_audio(int samplesize, void (*callback)(short * stream, int len));
-  void end();
-  void end_audio();
-  void debug();
-  void tweak_video(int shiftdelta, int numdelta, int denomdelta);
+        // display VGA image
+        vga_error_t begin(vga_mode_t mode);
 
-  // retrieve real size of the frame buffer
-  void get_frame_buffer_size(int *width, int *height);
+        void begin_audio(int samplesize, void (*callback)(short *stream, int len));
 
-  // wait next Vsync
-  void waitSync();
-  void waitLine(int line);
+        void end();
 
-  // =========================================================
-  // graphic primitives
-  // =========================================================
+        void end_audio();
 
-  void clear(vga_pixel col) ; 
-  void drawPixel(int x, int y, vga_pixel color);
-  vga_pixel getPixel(int x, int y);
-  vga_pixel * getLineBuffer(int j);
-  void drawRect(int16_t x, int16_t y, int16_t w, int16_t h, vga_pixel color);
-  void drawText(int16_t x, int16_t y, const char * text, vga_pixel fgcolor, vga_pixel bgcolor, bool doublesize);
-  void drawSprite(int16_t x, int16_t y, const int16_t *bitmap);
-  void drawSprite(int16_t x, int16_t y, const int16_t *bitmap, uint16_t croparx, uint16_t cropary, uint16_t croparw, uint16_t croparh);
-  void writeScreen(const vga_pixel *pcolors);  
-  void writeLine(int width, int height, int y, vga_pixel *buf);
-  void writeLine(int width, int height, int stride, uint8_t *buffer, vga_pixel *palette);
-  void writeLine16(int width, int height, int y, uint16_t *buf);  
-  void writeScreen(int width, int height, int stride, uint8_t *buffer, vga_pixel *palette);
-  void copyLine(int width, int height, int ysrc, int ydst);
+        void debug();
 
-  // ************************************** GFX API extension from darthvader ******************************************************
-  void drawline(int16_t x1, int16_t y1, int16_t x2, int16_t y2, vga_pixel color);
-  void draw_h_line(int16_t x1, int16_t y1, int16_t lenght, vga_pixel color);
-  void draw_v_line(int16_t x1, int16_t y1, int16_t lenght, vga_pixel color);
-  void drawcircle(int16_t x, int16_t y, int16_t radius, vga_pixel color);
-  void drawfilledcircle(int16_t x, int16_t y, int16_t radius, vga_pixel fillcolor, vga_pixel bordercolor);
-  void drawellipse(int16_t cx, int16_t cy, int16_t radius1, int16_t radius2, vga_pixel color);
-  void drawfilledellipse(int16_t cx, int16_t cy, int16_t radius1, int16_t radius2, vga_pixel fillcolor, vga_pixel bordercolor);
-  void drawtriangle(int16_t ax, int16_t ay, int16_t bx, int16_t by, int16_t cx, int16_t cy, vga_pixel color);
-  void drawfilledtriangle(int16_t ax, int16_t ay, int16_t bx, int16_t by, int16_t cx, int16_t cy, vga_pixel fillcolor, vga_pixel bordercolor);
-  void drawquad(int16_t centerx, int16_t centery, int16_t w, int16_t h, int16_t angle, vga_pixel color);
-  void drawfilledquad(int16_t centerx, int16_t centery, int16_t w, int16_t h, int16_t angle, vga_pixel fillcolor, vga_pixel bordercolor);
-  void drawpolygon(int16_t cx, int16_t cy, vga_pixel bordercolor);
-  void drawfullpolygon(int16_t cx, int16_t cy, vga_pixel fillcolor, vga_pixel bordercolor);
-  void drawrotatepolygon(int16_t cx, int16_t cy, int16_t Angle, vga_pixel fillcolor, vga_pixel bordercolor, uint8_t filled);
-  // *******************************************************************************************************************************
+        void tweak_video(int shiftdelta, int numdelta, int denomdelta);
 
+        // retrieve real size of the frame buffer
+        void get_frame_buffer_size(int *width, int *height);
 
-  // =========================================================
-  // Game engine
-  // =========================================================
+        // wait next Vsync
+        void waitSync();
 
-  #define TILES_MAX_LAYERS  2
+        void waitLine(int line);
 
-  // 16x16 pixels tiles or 8x8 if USE_8PIXTILES is set
-  //#define USE_8PIXTILES 1
-  #ifdef USE_8PIXTILES
-  #define TILES_COLS        40
-  #define TILES_ROWS        30
-  #define TILES_W           8
-  #define TILES_H           8
-  #define TILES_HBITS       3
-  #define TILES_HMASK       0x7
-  #else
-  #define TILES_COLS        20
-  #define TILES_ROWS        15
-  #define TILES_W           16
-  #define TILES_H           16
-  #define TILES_HBITS       4
-  #define TILES_HMASK       0xf
-  #endif
-  
-  // 32 sprites 16x32 or max 64 16x16 (not larger!!!)
-  #define SPRITES_MAX       32
-  #define SPRITES_W         16
-  #define SPRITES_H         32
+        // =========================================================
+        // graphic primitives
+        // =========================================================
 
-  void begin_gfxengine(int nblayers, int nbtiles, int nbsprites);
-  void run_gfxengine();
-  void tile_data(unsigned char index, vga_pixel * data, int len);
-  void sprite_data(unsigned char index, vga_pixel * data, int len);
-  void sprite(int id , int x, int y, unsigned char index);
-  void sprite_hide(int id);
-  void tile_draw(int layer, int x, int y, unsigned char index);
-  void tile_draw_row(int layer, int x, int y, unsigned char * data, int len);
-  void tile_draw_col(int layer, int x, int y, unsigned char * data, int len);
-  void set_hscroll(int layer, int rowbeg, int rowend, int mask);
-  void set_vscroll(int layer, int colbeg, int colend, int mask);
-  void hscroll(int layer, int value);
-  void vscroll(int layer, int value);
+        void clear(vga_pixel col);
 
+        void drawPixel(int x, int y, vga_pixel color);
 
-private:
-  static uint8_t _vsync_pin;
-  static DMAChannel flexio1DMA;
-  static DMAChannel flexio2DMA; 
-  static void QT3_isr(void);
-  static void AUDIO_isr(void);  
-  static void SOFTWARE_isr(void);  
-};
+        vga_pixel getPixel(int x, int y);
+
+        vga_pixel *getLineBuffer(int j);
+
+        void drawRect(int16_t x, int16_t y, int16_t w, int16_t h, vga_pixel color);
+
+        void drawText(int16_t x, int16_t y, const char *text, vga_pixel fgcolor, vga_pixel bgcolor, bool doublesize);
+
+        void drawSprite(int16_t x, int16_t y, const int16_t *bitmap);
+
+        void drawSprite(int16_t x, int16_t y, const int16_t *bitmap, uint16_t croparx, uint16_t cropary, uint16_t croparw,
+                   uint16_t croparh);
+
+        void writeScreen(const vga_pixel *pcolors);
+
+        void writeLine(int width, int height, int y, vga_pixel *buf);
+
+        void writeLine(int width, int height, int stride, uint8_t *buffer, vga_pixel *palette);
+
+        void writeLine16(int width, int height, int y, uint16_t *buf);
+
+        void writeScreen(int width, int height, int stride, uint8_t *buffer, vga_pixel *palette);
+
+        void copyLine(int width, int height, int ysrc, int ydst);
+
+        // ************************************** GFX API extension from darthvader ******************************************************
+
+    private:
+        static uint8_t _vsync_pin;
+        static DMAChannel flexio1DMA;
+        static DMAChannel flexio2DMA;
+
+    }
+
+}
 
 
 #endif
