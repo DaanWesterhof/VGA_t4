@@ -45,30 +45,15 @@
 static vga_pixel * gfxbuffer __attribute__((aligned(32))) = NULL;
 static uint32_t dstbuffer __attribute__((aligned(32)));
 
-// Visible vuffer
-static vga_pixel * framebuffer;
-static int  fb_width;
-static int  fb_height;
-static int  fb_stride;
-static int  maxpixperline;
-static int  left_border;
-static int  right_border;
-static int  line_double;
-static int  pix_shift;
-static int  ref_div_select;
-static int  ref_freq_num;
-static int  ref_freq_denom;
-static int  ref_pix_shift;
-static int  combine_shiftreg;
+// Visible buffer
+
 
 #ifdef DEBUG
 static uint32_t   ISRTicks_prev = 0;
 volatile uint32_t ISRTicks = 0;
-#endif 
+#endif
 
-uint8_t    VGA_T4::VGA_Handler::_vsync_pin = -1;
-DMAChannel VGA_T4::VGA_Handler::flexio1DMA;
-DMAChannel VGA_T4::VGA_Handler::flexio2DMA;
+uint8_t VGA_T4::VGA_Handler::_vsync_pin = -1;
 static volatile uint32_t VSYNC = 0;
 static volatile uint32_t currentLine=0;
 #define NOP asm volatile("nop\n\t");
@@ -77,7 +62,7 @@ static volatile uint32_t currentLine=0;
 
 PolyDef	PolySet;  // will contain a polygon data
 
-//absoluteley nessicairy for callback functions of ISR
+//absoluteley necessary for callback functions of ISR
 
 FASTRUN void QT3_isr() {
   TMR3_SCTRL3 &= ~(TMR_SCTRL_TCF);
@@ -98,32 +83,32 @@ FASTRUN void QT3_isr() {
   currentLine = currentLine % 525;
 
 
-  uint32_t y = (currentLine - TOP_BORDER) >> line_double;
+  uint32_t y = (currentLine - TOP_BORDER) >> VGA_T4::VGA_Handler::line_double;
   // Visible area  
-  if (y >= 0 && y < fb_height) {  
+  if (y >= 0 && y < VGA_T4::VGA_Handler::fb_height) {
     // Disable DMAs
     //DMA_CERQ = flexio2DMA.channel;
     //DMA_CERQ = flexio1DMA.channel; 
 
     // Setup src adress
     // Aligned 32 bits copy
-    unsigned long * p=(uint32_t *)&gfxbuffer[fb_stride*y];
+    unsigned long * p=(uint32_t *)&gfxbuffer[VGA_T4::VGA_Handler::fb_stride*y];
     VGA_T4::VGA_Handler::flexio2DMA.TCD->SADDR = p;
-    if (pix_shift & DMA_HACK) 
+    if (VGA_T4::VGA_Handler::pix_shift & DMA_HACK)
     {
       // Unaligned copy
-      uint8_t * p2=(uint8_t *)&gfxbuffer[fb_stride*y+(pix_shift&0xf)];
+      uint8_t * p2=(uint8_t *)&gfxbuffer[VGA_T4::VGA_Handler::fb_stride*y+(VGA_T4::VGA_Handler::pix_shift&0xf)];
       VGA_T4::VGA_Handler::flexio1DMA.TCD->SADDR = p2;
     }
     else  {
-      p=(uint32_t *)&gfxbuffer[fb_stride*y+(pix_shift&0xc)]; // multiple of 4
+      p=(uint32_t *)&gfxbuffer[VGA_T4::VGA_Handler::fb_stride*y+(VGA_T4::VGA_Handler::pix_shift&0xc)]; // multiple of 4
       VGA_T4::VGA_Handler::flexio1DMA.TCD->SADDR = p;
     }
 
     // Enable DMAs
     DMA_SERQ = VGA_T4::VGA_Handler::flexio2DMA.channel;
     DMA_SERQ = VGA_T4::VGA_Handler::flexio1DMA.channel;
-    arm_dcache_flush_delete((void*)((uint32_t *)&gfxbuffer[fb_stride*y]), fb_stride);
+    arm_dcache_flush_delete((void*)((uint32_t *)&gfxbuffer[VGA_T4::VGA_Handler::fb_stride*y]), VGA_T4::VGA_Handler::fb_stride);
   }
   sei();  
 
@@ -184,96 +169,104 @@ vga_error_t VGA_T4::VGA_Handler::begin(vga_mode_t mode)
   int flexio_freq = ( 24000*div_select + (num*24000)/denom )/POST_DIV_SELECT;
   set_videoClock(div_select,num,denom,true);
   switch(mode) {
-      case vga_mode_t::VGA_MODE_320x240:
-          left_border = backporch_pix/2;
-          right_border = frontporch_pix/2;
+      case vga_mode_t::VGA_MODE_320x240: {
+          left_border = backporch_pix / 2;
+          right_border = frontporch_pix / 2;
           fb_width = 320;
-          fb_height = 240 ;
-          fb_stride = left_border+fb_width+right_border;
+          fb_height = 240;
+          fb_stride = left_border + fb_width + right_border;
           maxpixperline = fb_stride;
-          flexio_clock_div = flexio_freq/(pix_freq/2);
+          flexio_clock_div = flexio_freq / (pix_freq / 2);
           line_double = 1;
-          pix_shift = 2+DMA_HACK;
+          pix_shift = 2 + DMA_HACK;
           break;
-      case vga_mode_t::VGA_MODE_320x480:
-          left_border = backporch_pix/2;
-          right_border = frontporch_pix/2;
+      }
+      case vga_mode_t::VGA_MODE_320x480: {
+          left_border = backporch_pix / 2;
+          right_border = frontporch_pix / 2;
           fb_width = 320;
-          fb_height = 480 ;
-          fb_stride = left_border+fb_width+right_border;
+          fb_height = 480;
+          fb_stride = left_border + fb_width + right_border;
           maxpixperline = fb_stride;
-          flexio_clock_div = flexio_freq/(pix_freq/2);
+          flexio_clock_div = flexio_freq / (pix_freq / 2);
           line_double = 0;
-          pix_shift = 2+DMA_HACK;
+          pix_shift = 2 + DMA_HACK;
           break;
-      case vga_mode_t::VGA_MODE_640x240:
+      }
+      case vga_mode_t::VGA_MODE_640x240: {
           left_border = backporch_pix;
           right_border = frontporch_pix;
           fb_width = 640;
-          fb_height = 240 ;
-          fb_stride = left_border+fb_width+right_border;
+          fb_height = 240;
+          fb_stride = left_border + fb_width + right_border;
           maxpixperline = fb_stride;
-          flexio_clock_div = flexio_freq/pix_freq;
+          flexio_clock_div = flexio_freq / pix_freq;
           line_double = 1;
           pix_shift = 4;
           combine_shiftreg = 1;
           break;
-      case vga_mode_t::VGA_MODE_640x480:
+      }
+      case vga_mode_t::VGA_MODE_640x480: {
           left_border = backporch_pix;
           right_border = frontporch_pix;
           fb_width = 640;
-          fb_height = 480 ;
-          fb_stride = left_border+fb_width+right_border;
+          fb_height = 480;
+          fb_stride = left_border + fb_width + right_border;
           maxpixperline = fb_stride;
-          flexio_clock_div = (flexio_freq/pix_freq);
+          flexio_clock_div = (flexio_freq / pix_freq);
           line_double = 0;
           pix_shift = 4;
           combine_shiftreg = 1;
           break;
-      case vga_mode_t::VGA_MODE_512x240:
-          left_border = backporch_pix/1.3;
-          right_border = frontporch_pix/1.3;
+      }
+      case vga_mode_t::VGA_MODE_512x240: {
+          left_border = backporch_pix / 1.3;
+          right_border = frontporch_pix / 1.3;
           fb_width = 512;
-          fb_height = 240 ;
-          fb_stride = left_border+fb_width+right_border;
+          fb_height = 240;
+          fb_stride = left_border + fb_width + right_border;
           maxpixperline = fb_stride;
-          flexio_clock_div = flexio_freq/(pix_freq/1.3)+2;
+          flexio_clock_div = flexio_freq / (pix_freq / 1.3) + 2;
           line_double = 1;
           pix_shift = 0;
           break;
-      case vga_mode_t::VGA_MODE_512x480:
-          left_border = backporch_pix/1.3;
-          right_border = frontporch_pix/1.3;
+      }
+      case vga_mode_t::VGA_MODE_512x480: {
+          left_border = backporch_pix / 1.3;
+          right_border = frontporch_pix / 1.3;
           fb_width = 512;
-          fb_height = 480 ;
-          fb_stride = left_border+fb_width+right_border;
+          fb_height = 480;
+          fb_stride = left_border + fb_width + right_border;
           maxpixperline = fb_stride;
-          flexio_clock_div = flexio_freq/(pix_freq/1.3)+2;
+          flexio_clock_div = flexio_freq / (pix_freq / 1.3) + 2;
           line_double = 0;
           pix_shift = 0;
           break;
-      case vga_mode_t::VGA_MODE_352x240:
-          left_border = backporch_pix/1.75;
-          right_border = frontporch_pix/1.75;
+      }
+      case vga_mode_t::VGA_MODE_352x240: {
+          left_border = backporch_pix / 1.75;
+          right_border = frontporch_pix / 1.75;
           fb_width = 352;
-          fb_height = 240 ;
-          fb_stride = left_border+fb_width+right_border;
+          fb_height = 240;
+          fb_stride = left_border + fb_width + right_border;
           maxpixperline = fb_stride;
-          flexio_clock_div = flexio_freq/(pix_freq/1.75)+2;
+          flexio_clock_div = flexio_freq / (pix_freq / 1.75) + 2;
           line_double = 1;
-          pix_shift = 2+DMA_HACK;
+          pix_shift = 2 + DMA_HACK;
           break;
-      case vga_mode_t::VGA_MODE_352x480:
-          left_border = backporch_pix/1.75;
-          right_border = frontporch_pix/1.75;
+      }
+      case vga_mode_t::VGA_MODE_352x480: {
+          left_border = backporch_pix / 1.75;
+          right_border = frontporch_pix / 1.75;
           fb_width = 352;
-          fb_height = 480 ;
-          fb_stride = left_border+fb_width+right_border;
+          fb_height = 480;
+          fb_stride = left_border + fb_width + right_border;
           maxpixperline = fb_stride;
-          flexio_clock_div = flexio_freq/(pix_freq/1.75)+2;
+          flexio_clock_div = flexio_freq / (pix_freq / 1.75) + 2;
           line_double = 0;
-          pix_shift = 2+DMA_HACK;
+          pix_shift = 2 + DMA_HACK;
           break;
+      }
   }	
 
   // Save param for tweek adjustment

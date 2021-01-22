@@ -5,7 +5,8 @@
 #ifndef VGA_T4_VGA_GAMEENGINE_HPP
 #define VGA_T4_VGA_GAMEENGINE_HPP
 
-#include "VGA_t4.h"
+#include "VGA_GFX.hpp"
+#include "VGA_font8x8.h"
 
 
 
@@ -19,7 +20,7 @@ namespace VGA_T4 {
         unsigned char index;
     };
 
-    class GameEngine {
+    class GameEngine : public VGA_HandlerGFX{
     private:
         vga_pixel * tilesbuffer __attribute__((aligned(32))) = NULL;
         vga_pixel * spritesbuffer __attribute__((aligned(32))) = NULL;
@@ -36,6 +37,7 @@ namespace VGA_T4 {
 
     public:
 
+        GameEngine(int vsync_pin = DEFAULT_VSYNC_PIN) : VGA_HandlerGFX(vsync_pin) {}
 
 
         void begin_gfxengine(int nblayers, int nbtiles, int nbsprites);
@@ -66,12 +68,6 @@ namespace VGA_T4 {
 
 
     private:
-
-        static void QT3_isr(void);
-
-        static void AUDIO_isr(void);
-
-        static void SOFTWARE_isr(void);
 
         //weird used to be static functions
 

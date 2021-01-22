@@ -207,6 +207,23 @@ namespace VGA_T4 {
         static DMAChannel flexio1DMA;
         static DMAChannel flexio2DMA;
 
+        static int  fb_height;
+        static int  fb_stride;
+        static int  line_double;
+        static int  pix_shift;
+
+        vga_pixel * framebuffer;
+        int  fb_width;
+
+        int  maxpixperline;
+        int  left_border;
+        int  right_border;
+        int  ref_div_select;
+        int  ref_freq_num;
+        int  ref_freq_denom;
+        int  ref_pix_shift;
+        int  combine_shiftreg;
+
     };
 
 }

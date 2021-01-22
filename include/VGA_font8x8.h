@@ -1,6 +1,9 @@
 
 // Font: c64_lower.64c
 
+#ifndef VGA_T4_VGA_FONT8X8_HPP
+#define VGA_T4_VGA_FONT8X8_HPP
+
 PROGMEM const unsigned char font8x8[128][8] =
 {
     { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // U+0000 (nul)
@@ -134,3 +137,4 @@ PROGMEM const unsigned char font8x8[128][8] =
 };
 
 
+#endif //VGA_T4_VGA_FONT8X8_HPP

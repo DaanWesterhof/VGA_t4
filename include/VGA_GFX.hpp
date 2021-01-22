@@ -12,6 +12,8 @@ namespace VGA_T4 {
     class VGA_HandlerGFX : public VGA_Handler {
     public:
 
+        VGA_HandlerGFX(int vsync_pin = DEFAULT_VSYNC_PIN) : VGA_Handler(vsync_pin) {}
+
         void drawline(int16_t x1, int16_t y1, int16_t x2, int16_t y2, vga_pixel color);
 
         void draw_h_line(int16_t x1, int16_t y1, int16_t lenght, vga_pixel color);

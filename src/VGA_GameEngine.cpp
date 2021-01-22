@@ -13,18 +13,7 @@
 *******************************************************************/
 
 
-//static vga_pixel * tilesbuffer __attribute__((aligned(32))) = NULL;
-//static vga_pixel * spritesbuffer __attribute__((aligned(32))) = NULL;
-//static unsigned char * tilesram __attribute__((aligned(32))) = NULL;
-//static Sprite_t * spritesdata __attribute__((aligned(32))) = NULL;
-//static int nb_layers = 0;
-//static int nb_tiles = 0;
-//static int nb_sprites = 0;
-//static int hscr[TILES_MAX_LAYERS];
-//static int vscr[TILES_MAX_LAYERS];
-//static int hscr_beg[TILES_MAX_LAYERS]={0,0};
-//static int hscr_end[TILES_MAX_LAYERS]={TILES_ROWS-1, TILES_ROWS-1};
-//static int hscr_mask=0;
+
 
 
 void VGA_T4::GameEngine::drawSpr(unsigned char index, int x, int y) {
@@ -243,8 +232,8 @@ void VGA_T4::GameEngine::begin_gfxengine(int nblayers, int nbtiles, int nbsprite
 
     if (spritesbuffer == NULL) spritesbuffer = (vga_pixel*)malloc(SPRITES_W*SPRITES_H*sizeof(vga_pixel)*nb_sprites);
     if (tilesbuffer == NULL) tilesbuffer = (vga_pixel*)malloc(TILES_W*TILES_H*sizeof(vga_pixel)*nb_tiles);
-    if (tilesram == NULL) tilesram = malloc(TILES_COLS*TILES_ROWS*nb_layers);
-    if (spritesdata == NULL) spritesdata = malloc(SPRITES_MAX*sizeof(Sprite_t));
+    if (tilesram == NULL) tilesram = (unsigned char *)malloc(TILES_COLS*TILES_ROWS*nb_layers);
+    if (spritesdata == NULL) spritesdata = (VGA_T4::Sprite_t *)malloc(SPRITES_MAX*sizeof(Sprite_t));
 
     memset((void*)spritesbuffer,0, SPRITES_W*SPRITES_H*sizeof(vga_pixel)*nb_sprites);
     memset((void*)tilesbuffer,0, TILES_W*TILES_H*sizeof(vga_pixel)*nb_tiles);
@@ -288,7 +277,7 @@ void VGA_T4::GameEngine::begin_gfxengine(int nblayers, int nbtiles, int nbsprite
 }
 
 
-void VGA_T4::run_gfxengine()
+void VGA_T4::GameEngine::run_gfxengine()
 {
     waitLine(480+40);
 
@@ -361,17 +350,17 @@ void VGA_T4::run_gfxengine()
     }
 }
 
-void tile_data(unsigned char index, vga_pixel * data, int len)
+void VGA_T4::GameEngine::tile_data(unsigned char index, vga_pixel * data, int len)
 {
     memcpy((void*)&tilesbuffer[index*TILES_W*TILES_H],(void*)data,len);
 }
 
-void VGA_T4::sprite_data(unsigned char index, vga_pixel * data, int len)
+void VGA_T4::GameEngine::sprite_data(unsigned char index, vga_pixel * data, int len)
 {
     memcpy((void*)&spritesbuffer[index*SPRITES_W*SPRITES_H],(void*)data,len);
 }
 
-void VGA_T4::sprite(int id , int x, int y, unsigned char index)
+void VGA_T4::GameEngine::sprite(int id , int x, int y, unsigned char index)
 {
     if (id < SPRITES_MAX) {
         spritesdata[id].x = x;
@@ -381,7 +370,7 @@ void VGA_T4::sprite(int id , int x, int y, unsigned char index)
 }
 
 
-void VGA_T4::sprite_hide(int id)
+void VGA_T4::GameEngine::sprite_hide(int id)
 {
     if (id < SPRITES_MAX) {
         spritesdata[id].x = -16;
@@ -390,12 +379,12 @@ void VGA_T4::sprite_hide(int id)
     }
 }
 
-void VGA_T4::tile_draw(int layer, int x, int y, unsigned char index)
+void VGA_T4::GameEngine::tile_draw(int layer, int x, int y, unsigned char index)
 {
     tilesram[(y+layer*TILES_ROWS)*TILES_COLS+x] = index;
 }
 
-void VGA_T4::tile_draw_row(int layer, int x, int y, unsigned char * data, int len)
+void VGA_T4::GameEngine::tile_draw_row(int layer, int x, int y, unsigned char * data, int len)
 {
     while (len--)
     {
@@ -403,7 +392,7 @@ void VGA_T4::tile_draw_row(int layer, int x, int y, unsigned char * data, int le
     }
 }
 
-void VGA_T4::tile_draw_col(int layer, int x, int y, unsigned char * data, int len)
+void VGA_T4::GameEngine::tile_draw_col(int layer, int x, int y, unsigned char * data, int len)
 {
     while (len--)
     {
@@ -411,24 +400,24 @@ void VGA_T4::tile_draw_col(int layer, int x, int y, unsigned char * data, int le
     }
 }
 
-void VGA_T4::hscroll(int layer, int value)
+void VGA_T4::GameEngine::hscroll(int layer, int value)
 {
     hscr[layer] = value;
 }
 
-void VGA_T4::vscroll(int layer, int value)
+void VGA_T4::GameEngine::vscroll(int layer, int value)
 {
     vscr[layer] = value;
 }
 
-void VGA_T4::set_hscroll(int layer, int rowbeg, int rowend, int mask)
+void VGA_T4::GameEngine::set_hscroll(int layer, int rowbeg, int rowend, int mask)
 {
     hscr_beg[layer] = rowbeg;
     hscr_end[layer] = rowend;
     hscr_mask = mask+1;
 }
 
-void VGA_T4::set_vscroll(int layer, int colbeg, int colend, int mask)
+void VGA_T4::GameEngine::set_vscroll(int layer, int colbeg, int colend, int mask)
 {
     hscr_beg[layer] = colbeg;
     hscr_end[layer] = colend;
