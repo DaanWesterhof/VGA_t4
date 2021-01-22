@@ -144,7 +144,7 @@ namespace VGA_T4 {
     class VGA_Handler {
     public:
 
-        VGA_T4(int vsync_pin = DEFAULT_VSYNC_PIN);
+        explicit VGA_Handler(int vsync_pin = DEFAULT_VSYNC_PIN);
 
         // display VGA image
         vga_error_t begin(vga_mode_t mode);
@@ -202,12 +202,12 @@ namespace VGA_T4 {
 
         // ************************************** GFX API extension from darthvader ******************************************************
 
-    private:
+    public:
         static uint8_t _vsync_pin;
         static DMAChannel flexio1DMA;
         static DMAChannel flexio2DMA;
 
-    }
+    };
 
 }
 

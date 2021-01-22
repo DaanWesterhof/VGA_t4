@@ -13,8 +13,10 @@
 	from the Teensy4 forum (https://forum.pjrc.com)
 */
 
-#include "../header/VGA_t4.h"
-#include "../header/VGA_font8x8.h"
+#include <Arduino.h>
+#include "VGA_t4.h"
+#include "VGA_font8x8.h"
+#include "VGA_settings.hpp"
 
 // Objective:
 // generates VGA signal fully in hardware with as little as possible CPU help
@@ -37,31 +39,7 @@
 
 
 
-#define TOP_BORDER    40
-#define PIN_HBLANK    15
 
-#ifdef BITS12
-#define PIN_R_B3      5
-#endif
-#define PIN_R_B2      33
-#define PIN_R_B1      4
-#define PIN_R_B0      3
-#define PIN_G_B2      2
-#define PIN_G_B1      13
-#define PIN_G_B0      11
-#define PIN_B_B1      12
-#define PIN_B_B0      10
-#ifdef BITS12
-#define PIN_B_B2      6
-#define PIN_B_B3      9
-#define PIN_G_B3      32
-#endif
-
-#define DMA_HACK      0x80
-
-#define R16(rgb) ((rgb>>8)&0xf8) 
-#define G16(rgb) ((rgb>>3)&0xfc) 
-#define B16(rgb) ((rgb<<3)&0xf8) 
 
 // Full buffer including back/front porch 
 static vga_pixel * gfxbuffer __attribute__((aligned(32))) = NULL;
@@ -88,9 +66,9 @@ static uint32_t   ISRTicks_prev = 0;
 volatile uint32_t ISRTicks = 0;
 #endif 
 
-uint8_t    VGA_T4::_vsync_pin = -1;
-DMAChannel VGA_T4::flexio1DMA;
-DMAChannel VGA_T4::flexio2DMA; 
+uint8_t    VGA_T4::VGA_Handler::_vsync_pin = -1;
+DMAChannel VGA_T4::VGA_Handler::flexio1DMA;
+DMAChannel VGA_T4::VGA_Handler::flexio2DMA;
 static volatile uint32_t VSYNC = 0;
 static volatile uint32_t currentLine=0;
 #define NOP asm volatile("nop\n\t");
@@ -99,8 +77,9 @@ static volatile uint32_t currentLine=0;
 
 PolyDef	PolySet;  // will contain a polygon data
 
+//absoluteley nessicairy for callback functions of ISR
 
-FASTRUN void VGA_T4::QT3_isr(void) {
+FASTRUN void QT3_isr() {
   TMR3_SCTRL3 &= ~(TMR_SCTRL_TCF);
   TMR3_CSCTRL3 &= ~(TMR_CSCTRL_TCF1|TMR_CSCTRL_TCF2);
 
@@ -108,10 +87,10 @@ FASTRUN void VGA_T4::QT3_isr(void) {
   
   // V-PULSE
   if (currentLine > 0) {
-    digitalWrite(_vsync_pin, 1);
+    digitalWrite(VGA_T4::VGA_Handler::_vsync_pin, 1);
     VSYNC = 0;
   } else {
-    digitalWrite(_vsync_pin, 0);
+    digitalWrite(VGA_T4::VGA_Handler::_vsync_pin, 0);
     VSYNC = 1;
   }
   
@@ -126,24 +105,24 @@ FASTRUN void VGA_T4::QT3_isr(void) {
     //DMA_CERQ = flexio2DMA.channel;
     //DMA_CERQ = flexio1DMA.channel; 
 
-    // Setup source adress
+    // Setup src adress
     // Aligned 32 bits copy
-    unsigned long * p=(uint32_t *)&gfxbuffer[fb_stride*y];  
-    flexio2DMA.TCD->SADDR = p;
+    unsigned long * p=(uint32_t *)&gfxbuffer[fb_stride*y];
+    VGA_T4::VGA_Handler::flexio2DMA.TCD->SADDR = p;
     if (pix_shift & DMA_HACK) 
     {
       // Unaligned copy
       uint8_t * p2=(uint8_t *)&gfxbuffer[fb_stride*y+(pix_shift&0xf)];
-      flexio1DMA.TCD->SADDR = p2;
+      VGA_T4::VGA_Handler::flexio1DMA.TCD->SADDR = p2;
     }
     else  {
       p=(uint32_t *)&gfxbuffer[fb_stride*y+(pix_shift&0xc)]; // multiple of 4
-      flexio1DMA.TCD->SADDR = p;
+      VGA_T4::VGA_Handler::flexio1DMA.TCD->SADDR = p;
     }
 
     // Enable DMAs
-    DMA_SERQ = flexio2DMA.channel; 
-    DMA_SERQ = flexio1DMA.channel; 
+    DMA_SERQ = VGA_T4::VGA_Handler::flexio2DMA.channel;
+    DMA_SERQ = VGA_T4::VGA_Handler::flexio1DMA.channel;
     arm_dcache_flush_delete((void*)((uint32_t *)&gfxbuffer[fb_stride*y]), fb_stride);
   }
   sei();  
@@ -155,49 +134,12 @@ FASTRUN void VGA_T4::QT3_isr(void) {
 }
 
 
-VGA_T4::VGA_T4(int vsync_pin = DEFAULT_VSYNC_PIN)
-{
-  _vsync_pin = vsync_pin;
+VGA_T4::VGA_Handler::VGA_Handler(int vsync_pin) {
+    _vsync_pin = vsync_pin;
+
 }
 
-// VGA 640x480@60Hz
-// Screen refresh rate 60 Hz
-// Vertical refresh    31.46875 kHz
-// Pixel freq.         25.175 MHz
-//
-// Visible area        640  25.422045680238 us
-// Front porch         16   0.63555114200596 us
-// Sync pulse          96   3.8133068520357 us
-// Back porch          48   1.9066534260179 us
-// Whole line          800  31.777557100298 us
 
-#define frame_freq     60.0     // Hz
-#define line_freq      31.46875 // KHz
-#define pix_freq       (line_freq*800) // KHz (25.175 MHz)
-
-// pix_period = 39.7ns
-// H-PULSE is 3.8133us = 3813.3ns => 96 pixels (see above for the rest)
-#define frontporch_pix  20 //16
-#define backporch_pix   44 //48
-
-// Flexio Clock
-// PLL3 SW CLOCK    (3) => 480 MHz
-// PLL5 VIDEO CLOCK (2) => See formula for clock (we take 604200 KHz as /24 it gives 25175)
-#define FLEXIO_CLK_SEL_PLL3 3
-#define FLEXIO_CLK_SEL_PLL5 2
-
-
-/* Set video PLL */
-// There are /1, /2, /4, /8, /16 post dividers for the Video PLL. 
-// The output frequency can be set by programming the fields in the CCM_ANALOG_PLL_VIDEO, 
-// and CCM_ANALOG_MISC2 register sets according to the following equation.
-// PLL output frequency = Fref * (DIV_SELECT + NUM/DENOM)
-
-// nfact: 
-// This field controls the PLL loop divider. 
-// Valid range for DIV_SELECT divider value: 27~54.
-
-#define POST_DIV_SELECT 2
 
 static void set_videoClock(int nfact, int32_t nmult, uint32_t ndiv, bool force) // sets PLL5
 {
@@ -217,7 +159,7 @@ static void set_videoClock(int nfact, int32_t nmult, uint32_t ndiv, bool force) 
   	CCM_ANALOG_PLL_VIDEO &= ~CCM_ANALOG_PLL_VIDEO_BYPASS;//Disable Bypass
 }
 
-void VGA_T4::tweak_video(int shiftdelta, int numdelta, int denomdelta)
+void VGA_T4::VGA_Handler::tweak_video(int shiftdelta, int numdelta, int denomdelta)
 {
   if ( (numdelta != 0) || (denomdelta != 0) )   {
     set_videoClock(ref_div_select,ref_freq_num+numdelta,ref_freq_denom+denomdelta,true);  
@@ -228,7 +170,7 @@ void VGA_T4::tweak_video(int shiftdelta, int numdelta, int denomdelta)
 }
 
 // display VGA image
-vga_error_t VGA_T4::begin(vga_mode_t mode)
+vga_error_t VGA_T4::VGA_Handler::begin(vga_mode_t mode)
 {
   uint32_t flexio_clock_div;
   combine_shiftreg = 0;
@@ -433,7 +375,7 @@ vga_error_t VGA_T4::begin(vga_mode_t mode)
   parallelWidth = FLEXIO_SHIFTCFG_PWIDTH(4);  // 8-bit parallel shift width
   pinSelect = FLEXIO_SHIFTCTL_PINSEL(0);      // Select pins FXIO_D0 through FXIO_D3
 #endif
-  inputSource = FLEXIO_SHIFTCFG_INSRC*(1);    // Input source from next shifter
+  inputSource = FLEXIO_SHIFTCFG_INSRC*(1);    // Input src from next shifter
   stopBit = FLEXIO_SHIFTCFG_SSTOP(0);         // Stop bit disabled
   startBit = FLEXIO_SHIFTCFG_SSTART(0);       // Start bit disabled, transmitter loads data on enable 
   timerSelect = FLEXIO_SHIFTCTL_TIMSEL(0);    // Use timer 0
@@ -578,7 +520,7 @@ vga_error_t VGA_T4::begin(vga_mode_t mode)
         flexio1DMA.TCD->CSR |= DMA_TCD_CSR_DREQ;
       }
       else {
-        // Unaligned (source) 32 bits copy (8bits to 32bits)
+        // Unaligned (src) 32 bits copy (8bits to 32bits)
         flexio1DMA.TCD->NBYTES = 4;
         flexio1DMA.TCD->SOFF = 1;
         flexio1DMA.TCD->SLAST = -maxpixperline;
@@ -651,15 +593,15 @@ vga_error_t VGA_T4::begin(vga_mode_t mode)
 
   /* initialize gfx buffer */
   if (gfxbuffer == NULL) gfxbuffer = (vga_pixel*)malloc(fb_stride*fb_height*sizeof(vga_pixel)+4); // 4bytes for pixel shift
-  if (gfxbuffer == NULL) return(VGA_ERROR);
+  if (gfxbuffer == NULL) return(vga_error_t::VGA_ERROR);
 
   memset((void*)&gfxbuffer[0],0, fb_stride*fb_height*sizeof(vga_pixel)+4);
   framebuffer = (vga_pixel*)&gfxbuffer[left_border];
 
-  return(VGA_OK);
+  return(vga_error_t::VGA_OK);
 }
 
-void VGA_T4::end()
+void VGA_T4::VGA_Handler::end()
 {
   cli(); 
   /* Disable DMA channel so it doesn't start transferring yet */
@@ -676,7 +618,7 @@ void VGA_T4::end()
   if (gfxbuffer != NULL) free(gfxbuffer); 
 }
 
-void VGA_T4::debug()
+void debug()
 {
 #ifdef DEBUG
   delay(1000);
@@ -687,23 +629,23 @@ void VGA_T4::debug()
 }
 
 // retrieve size of the frame buffer
-void VGA_T4::get_frame_buffer_size(int *width, int *height)
+void VGA_T4::VGA_Handler::get_frame_buffer_size(int *width, int *height)
 {
   *width = fb_width;
   *height = fb_height;
 }
 
-void VGA_T4::waitSync()
+void VGA_T4::VGA_Handler::waitSync()
 {
   while (VSYNC == 0) {};
 }
 
-void VGA_T4::waitLine(int line)
+void VGA_T4::VGA_Handler::waitLine(int line)
 {
   while (currentLine != line) {};
 }
 
-void VGA_T4::clear(vga_pixel color) {
+void VGA_T4::VGA_Handler::clear(vga_pixel color) {
   int i,j;
   for (j=0; j<fb_height; j++)
   {
@@ -716,20 +658,20 @@ void VGA_T4::clear(vga_pixel color) {
 }
 
 
-void VGA_T4::drawPixel(int x, int y, vga_pixel color){
+void VGA_T4::VGA_Handler::drawPixel(int x, int y, vga_pixel color){
 	if((x>=0) && (x<=fb_width) && (y>=0) && (y<=fb_height))
 		framebuffer[y*fb_stride+x] = color;
 }
 
-vga_pixel VGA_T4::getPixel(int x, int y){
+vga_pixel VGA_T4::VGA_Handler::getPixel(int x, int y){
   return(framebuffer[y*fb_stride+x]);
 }
 
-vga_pixel * VGA_T4::getLineBuffer(int j) {
+vga_pixel * VGA_T4::VGA_Handler::getLineBuffer(int j) {
   return (&framebuffer[j*fb_stride]);
 }
 
-void VGA_T4::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, vga_pixel color) {
+void VGA_T4::VGA_Handler::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, vga_pixel color) {
   int i,j,l=y;
   for (j=0; j<h; j++)
   {
@@ -742,7 +684,7 @@ void VGA_T4::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, vga_pixel colo
   }
 }
 
-void VGA_T4::drawText(int16_t x, int16_t y, const char * text, vga_pixel fgcolor, vga_pixel bgcolor, bool doublesize) {
+void VGA_T4::VGA_Handler::drawText(int16_t x, int16_t y, const char * text, vga_pixel fgcolor, vga_pixel bgcolor, bool doublesize) {
   vga_pixel c;
   vga_pixel * dst;
   
@@ -812,11 +754,11 @@ void VGA_T4::drawText(int16_t x, int16_t y, const char * text, vga_pixel fgcolor
   } 
 }
 
-void VGA_T4::drawSprite(int16_t x, int16_t y, const int16_t *bitmap) {
+void VGA_T4::VGA_Handler::drawSprite(int16_t x, int16_t y, const int16_t *bitmap) {
     drawSprite(x,y,bitmap, 0,0,0,0);
 }
 
-void VGA_T4::drawSprite(int16_t x, int16_t y, const int16_t *bitmap, uint16_t arx, uint16_t ary, uint16_t arw, uint16_t arh)
+void VGA_T4::VGA_Handler::drawSprite(int16_t x, int16_t y, const int16_t *bitmap, uint16_t arx, uint16_t ary, uint16_t arw, uint16_t arh)
 {
   int bmp_offx = 0;
   int bmp_offy = 0;
@@ -865,7 +807,7 @@ void VGA_T4::drawSprite(int16_t x, int16_t y, const int16_t *bitmap, uint16_t ar
   for (int row=0;row<arh; row++)
   {
     vga_pixel * dst=&framebuffer[l*fb_stride+arx];  
-    bmp_ptr = bitmap;
+    bmp_ptr = (int16_t *)bitmap;
     for (int col=0;col<arw; col++)
     {
         uint16_t pix= *bmp_ptr++;
@@ -876,7 +818,7 @@ void VGA_T4::drawSprite(int16_t x, int16_t y, const int16_t *bitmap, uint16_t ar
   } 
 }
 
-void VGA_T4::writeLine(int width, int height, int y, uint8_t *buf, vga_pixel *palette) {
+void VGA_T4::VGA_Handler::writeLine(int width, int height, int y, uint8_t *buf, vga_pixel *palette) {
   if ( (height<fb_height) && (height > 2) ) y += (fb_height-height)/2;
   vga_pixel * dst=&framebuffer[y*fb_stride];
   if (width > fb_width) {
@@ -926,7 +868,7 @@ void VGA_T4::writeLine(int width, int height, int y, uint8_t *buf, vga_pixel *pa
   }
 }
 
-void VGA_T4::writeLine(int width, int height, int y, vga_pixel *buf) {
+void VGA_T4::VGA_Handler::writeLine(int width, int height, int y, vga_pixel *buf) {
   if ( (height<fb_height) && (height > 2) ) y += (fb_height-height)/2;
   uint8_t * dst=&framebuffer[y*fb_stride];    
   if (width > fb_width) {
@@ -975,7 +917,7 @@ void VGA_T4::writeLine(int width, int height, int y, vga_pixel *buf) {
   }
 }
 
-void VGA_T4::writeLine16(int width, int height, int y, uint16_t *buf) {
+void VGA_T4::VGA_Handler::writeLine16(int width, int height, int y, uint16_t *buf) {
   if ( (height<fb_height) && (height > 2) ) y += (fb_height-height)/2;
   uint8_t * dst=&framebuffer[y*fb_stride];    
   if (width > fb_width) {
@@ -1009,7 +951,7 @@ void VGA_T4::writeLine16(int width, int height, int y, uint16_t *buf) {
   }
 }
 
-void VGA_T4::writeScreen(int width, int height, int stride, uint8_t *buf, vga_pixel *palette) {
+void VGA_T4::VGA_Handler::writeScreen(int width, int height, int stride, uint8_t *buf, vga_pixel *palette) {
   uint8_t *buffer=buf;
   uint8_t *src; 
 
@@ -1067,7 +1009,7 @@ void VGA_T4::writeScreen(int width, int height, int stride, uint8_t *buf, vga_pi
   }   
 }
 
-void VGA_T4::copyLine(int width, int height, int ysrc, int ydst) {
+void VGA_T4::VGA_Handler::copyLine(int width, int height, int ysrc, int ydst) {
   if ( (height<fb_height) && (height > 2) ) {
     ysrc += (fb_height-height)/2;
     ydst += (fb_height-height)/2;
@@ -1184,7 +1126,7 @@ static uint16_t * i2s_tx_buffer16;
 static uint16_t * txreg = (uint16_t *)((uint32_t)&I2S1_TDR0 + 2);
 
 
-FASTRUN void VGA_T4::AUDIO_isr() {
+FASTRUN void AUDIO_isr() {
   
   *txreg = i2s_tx_buffer16[cnt]; 
   cnt = cnt + 1;
@@ -1213,7 +1155,7 @@ FASTRUN void VGA_T4::AUDIO_isr() {
 */
 }
 
-FASTRUN void VGA_T4::SOFTWARE_isr() {
+FASTRUN void SOFTWARE_isr() {
   //Serial.println("x");
   if (fillfirsthalf) {
     fillsamples((short *)i2s_tx_buffer, sampleBufferSize);
@@ -1226,7 +1168,7 @@ FASTRUN void VGA_T4::SOFTWARE_isr() {
 }
 
 // display VGA image
-FLASHMEM void VGA_T4::begin_audio(int samplesize, void (*callback)(short * stream, int len))
+FLASHMEM void VGA_T4::VGA_Handler::begin_audio(int samplesize, void (*callback)(short * stream, int len))
 {
   fillsamples = callback;
   i2s_tx_buffer =  (uint32_t*)malloc(samplesize*sizeof(uint32_t)); //&i2s_tx[0];
@@ -1256,8 +1198,7 @@ FLASHMEM void VGA_T4::begin_audio(int samplesize, void (*callback)(short * strea
   Serial.println(samplesize);
 }
  
-FLASHMEM void VGA_T4::end_audio()
-{
+FLASHMEM void VGA_T4::VGA_Handler::end_audio() {
   if (i2s_tx_buffer != NULL) {
   	free(i2s_tx_buffer);
   }

@@ -2,7 +2,7 @@
 // Created by daang on 1/20/2021.
 //
 
-#include "../header/VGA_GameEngine.hpp"
+#include "../include/VGA_GameEngine.hpp"
 
 /*******************************************************************
  Experimental GAME engine supporting:

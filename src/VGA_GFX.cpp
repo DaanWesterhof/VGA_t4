@@ -2,7 +2,7 @@
 // Created by daang on 1/20/2021.
 //
 
-#include "../header/VGA_GFX.hpp"
+#include "../include/VGA_GFX.hpp"
 
 //--------------------------------------------------------------
 // Draw a line between 2 points
@@ -10,7 +10,7 @@
 // x2,y2   : 2nd point
 // Color   : 16bits color
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawline(int16_t x1, int16_t y1, int16_t x2, int16_t y2, vga_pixel color){
+void VGA_T4::VGA_HandlerGFX::drawline(int16_t x1, int16_t y1, int16_t x2, int16_t y2, vga_pixel color){
     uint8_t yLonger = 0;
     int incrementVal, endVal;
     int shortLen = y2-y1;
@@ -60,7 +60,7 @@ void VGA_T4::GameEngine::drawline(int16_t x1, int16_t y1, int16_t x2, int16_t y2
 // lenght  : lenght in pixels
 // color   : 16bits color
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::draw_h_line(int16_t x, int16_t y, int16_t lenght, vga_pixel color){
+void VGA_T4::VGA_HandlerGFX::draw_h_line(int16_t x, int16_t y, int16_t lenght, vga_pixel color){
     drawline(x , y , x + lenght , y , color);
 }
 
@@ -70,7 +70,7 @@ void VGA_T4::GameEngine::draw_h_line(int16_t x, int16_t y, int16_t lenght, vga_p
 // lenght  : lenght in pixels
 // color   : 16bits color
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::draw_v_line(int16_t x, int16_t y, int16_t lenght, vga_pixel color){
+void VGA_T4::VGA_HandlerGFX::draw_v_line(int16_t x, int16_t y, int16_t lenght, vga_pixel color){
     drawline(x , y , x , y + lenght , color);
 }
 
@@ -80,7 +80,7 @@ void VGA_T4::GameEngine::draw_v_line(int16_t x, int16_t y, int16_t lenght, vga_p
 // r - radius.
 // color - color of the circle.
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawcircle(int16_t x, int16_t y, int16_t radius, vga_pixel color){
+void VGA_T4::VGA_HandlerGFX::drawcircle(int16_t x, int16_t y, int16_t radius, vga_pixel color){
     int16_t a, b, P;
 
     a = 0;
@@ -112,7 +112,7 @@ void VGA_T4::GameEngine::drawcircle(int16_t x, int16_t y, int16_t radius, vga_pi
 // fillcolor  : specifies the Circle Fill Color
 // bordercolor: specifies the Circle Border Color
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawfilledcircle(int16_t x, int16_t y, int16_t radius, vga_pixel fillcolor, vga_pixel bordercolor){
+void VGA_T4::VGA_HandlerGFX::drawfilledcircle(int16_t x, int16_t y, int16_t radius, vga_pixel fillcolor, vga_pixel bordercolor){
     int32_t  D;    /* Decision Variable */
     uint32_t  CurX;/* Current X Value */
     uint32_t  CurY;/* Current Y Value */
@@ -158,7 +158,7 @@ void VGA_T4::GameEngine::drawfilledcircle(int16_t x, int16_t y, int16_t radius, 
 // radius2: major radius of ellipse.
 // color: specifies the Color to use for draw the Border from the Ellipse.
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawellipse(int16_t cx, int16_t cy, int16_t radius1, int16_t radius2, vga_pixel color){
+void VGA_T4::VGA_HandlerGFX::drawellipse(int16_t cx, int16_t cy, int16_t radius1, int16_t radius2, vga_pixel color){
     int x = -radius1, y = 0, err = 2-2*radius1, e2;
     float K = 0, rad1 = 0, rad2 = 0;
 
@@ -212,7 +212,7 @@ void VGA_T4::GameEngine::drawellipse(int16_t cx, int16_t cy, int16_t radius1, in
 // radius2: major radius of ellipse.
 // fillcolor  : specifies the Color to use for Fill the Ellipse.
 // bordercolor: specifies the Color to use for draw the Border from the Ellipse.
-void VGA_T4::GameEngine::drawfilledellipse(int16_t cx, int16_t cy, int16_t radius1, int16_t radius2, vga_pixel fillcolor, vga_pixel bordercolor){
+void VGA_T4::VGA_HandlerGFX::drawfilledellipse(int16_t cx, int16_t cy, int16_t radius1, int16_t radius2, vga_pixel fillcolor, vga_pixel bordercolor){
     int x = -radius1, y = 0, err = 2-2*radius1, e2;
     float K = 0, rad1 = 0, rad2 = 0;
 
@@ -266,7 +266,7 @@ void VGA_T4::GameEngine::drawfilledellipse(int16_t cx, int16_t cy, int16_t radiu
 // ax,ay, bx,by, cx,cy - the triangle points.
 // color    - color of the triangle.
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawtriangle(int16_t ax, int16_t ay, int16_t bx, int16_t by, int16_t cx, int16_t cy, vga_pixel color){
+void VGA_T4::VGA_HandlerGFX::drawtriangle(int16_t ax, int16_t ay, int16_t bx, int16_t by, int16_t cx, int16_t cy, vga_pixel color){
     drawline(ax , ay , bx , by , color);
     drawline(bx , by , cx , cy , color);
     drawline(cx , cy , ax , ay , color);
@@ -278,7 +278,7 @@ void VGA_T4::GameEngine::drawtriangle(int16_t ax, int16_t ay, int16_t bx, int16_
 // fillcolor - specifies the Color to use for Fill the triangle.
 // bordercolor - specifies the Color to use for draw the Border from the triangle.
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawfilledtriangle(int16_t ax, int16_t ay, int16_t bx, int16_t by, int16_t cx, int16_t cy, vga_pixel fillcolor, vga_pixel bordercolor){
+void VGA_T4::VGA_HandlerGFX::drawfilledtriangle(int16_t ax, int16_t ay, int16_t bx, int16_t by, int16_t cx, int16_t cy, vga_pixel fillcolor, vga_pixel bordercolor){
     float ma, mb, mc    ; //'gradient of the lines
     float start, finish ; //'draw a line from start to finish!
     float tempspace     ; //'temporary storage for swapping values...
@@ -372,7 +372,7 @@ void VGA_T4::GameEngine::drawfilledtriangle(int16_t ax, int16_t ay, int16_t bx, 
 //	angle			: specifies the angle for drawing the rectangle
 //  color	    	: specifies the Color to use for Fill the Rectangle.
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawquad(int16_t centerx, int16_t centery, int16_t w, int16_t h, int16_t angle, vga_pixel color){
+void VGA_T4::VGA_HandlerGFX::drawquad(int16_t centerx, int16_t centery, int16_t w, int16_t h, int16_t angle, vga_pixel color){
     int16_t	px[4],py[4];
     float	l;
     float	raddeg = 3.14159 / 180;
@@ -412,7 +412,7 @@ void VGA_T4::GameEngine::drawquad(int16_t centerx, int16_t centery, int16_t w, i
 //  fillcolor    	: specifies the Color to use for Fill the Rectangle.
 //  bordercolor  	: specifies the Color to use for draw the Border from the Rectangle.
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawfilledquad(int16_t centerx, int16_t centery, int16_t w, int16_t h, int16_t angle, vga_pixel fillcolor, vga_pixel bordercolor){
+void VGA_T4::VGA_HandlerGFX::drawfilledquad(int16_t centerx, int16_t centery, int16_t w, int16_t h, int16_t angle, vga_pixel fillcolor, vga_pixel bordercolor){
     int16_t	px[4],py[4];
     float	l;
     float	raddeg = 3.14159 / 180;
@@ -458,7 +458,7 @@ void VGA_T4::GameEngine::drawfilledquad(int16_t centerx, int16_t centery, int16_
 //  After the last polygon point , set PolySet.Pts[n + 1].x to 10000
 //  Max number of point for the polygon is set by MaxPolyPoint previously defined.
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawpolygon(int16_t cx, int16_t cy, vga_pixel bordercolor){
+void VGA_T4::VGA_HandlerGFX::drawpolygon(int16_t cx, int16_t cy, vga_pixel bordercolor){
     uint8_t n = 1;
     while((PolySet.Pts[n].x < 10000) && (n < MaxPolyPoint)){
         drawline(PolySet.Pts[n].x + cx,
@@ -488,7 +488,7 @@ void VGA_T4::GameEngine::drawpolygon(int16_t cx, int16_t cy, vga_pixel bordercol
 //  After the last polygon point , set PolySet.Pts[n + 1].x to 10000
 //  Max number of point for the polygon is set by MaxPolyPoint previously defined.
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawfullpolygon(int16_t cx, int16_t cy, vga_pixel fillcolor, vga_pixel bordercolor){
+void VGA_T4::VGA_HandlerGFX::drawfullpolygon(int16_t cx, int16_t cy, vga_pixel fillcolor, vga_pixel bordercolor){
     int n,i,j,k,dy,dx;
     int y,temp;
     int a[MaxPolyPoint][2],xi[MaxPolyPoint];
@@ -566,7 +566,7 @@ void VGA_T4::GameEngine::drawfullpolygon(int16_t cx, int16_t cy, vga_pixel fillc
 //  After the last polygon point , set PolySet.Pts[n + 1].x to 10000
 //  Max number of point for the polygon is set by MaxPolyPoint previously defined.
 //--------------------------------------------------------------
-void VGA_T4::GameEngine::drawrotatepolygon(int16_t cx, int16_t cy, int16_t Angle, vga_pixel fillcolor, vga_pixel bordercolor, uint8_t filled)
+void VGA_T4::VGA_HandlerGFX::drawrotatepolygon(int16_t cx, int16_t cy, int16_t Angle, vga_pixel fillcolor, vga_pixel bordercolor, uint8_t filled)
 {
     Point2D 	SavePts[MaxPolyPoint];
     uint16_t	n = 0;
