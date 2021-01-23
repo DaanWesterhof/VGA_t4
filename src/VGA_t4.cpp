@@ -43,7 +43,7 @@
 
 // Full buffer including back/front porch 
 static vga_pixel * gfxbuffer __attribute__((aligned(32))) = NULL;
-static uint32_t dstbuffer __attribute__((aligned(32)));
+//static uint32_t dstbuffer __attribute__((aligned(32)));
 
 // Visible buffer
 
@@ -157,7 +157,7 @@ void VGA_T4::VGA_Handler::tweak_video(int shiftdelta, int numdelta, int denomdel
 // display VGA image
 vga_error_t VGA_T4::VGA_Handler::begin(vga_mode_t mode)
 {
-  uint32_t flexio_clock_div;
+  uint32_t flexio_clock_div = 0;
   combine_shiftreg = 0;
 //  int div_select = 49;
 //  int num = 135;  
@@ -499,7 +499,7 @@ vga_error_t VGA_T4::VGA_Handler::begin(vga_mode_t mode)
     // Use pixel shift to avoid color smearing?
     if (pix_shift & DMA_HACK)
     {
-      if (pix_shift & 0x3 == 0) {
+      if ((pix_shift & 0x3) == 0) {
         // Aligned 32 bits copy (32bits to 32bits)
         flexio1DMA.TCD->NBYTES = 4;
         flexio1DMA.TCD->SOFF = 4;
@@ -635,7 +635,7 @@ void VGA_T4::VGA_Handler::waitSync()
 
 void VGA_T4::VGA_Handler::waitLine(int line)
 {
-  while (currentLine != line) {};
+  while (currentLine != (unsigned int)line) {};
 }
 
 void VGA_T4::VGA_Handler::clear(vga_pixel color) {

@@ -19,7 +19,7 @@
 #include <Arduino.h>
 #include <avr_emulation.h>
 #include <DMAChannel.h>
-#include <math.h>
+#include <cmath>
 #include "VGA_settings.hpp"
 
 
