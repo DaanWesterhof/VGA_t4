@@ -59,6 +59,18 @@ static volatile uint32_t currentLine=0;
 #define NOP asm volatile("nop\n\t");
 
 
+// static member definitions
+
+
+DMAChannel VGA_T4::VGA_Handler::flexio1DMA = false;
+DMAChannel VGA_T4::VGA_Handler::flexio2DMA = false;
+
+int  VGA_T4::VGA_Handler::fb_height =0;
+int  VGA_T4::VGA_Handler::fb_stride =0;
+int  VGA_T4::VGA_Handler::line_double =0;
+int  VGA_T4::VGA_Handler::pix_shift =0;
+
+
 
 PolyDef	PolySet;  // will contain a polygon data
 
